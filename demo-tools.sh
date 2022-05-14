@@ -32,10 +32,10 @@ case $choice in
     echo '--------------------------'  
     echo '---------- NMAP ----------'
     echo 'Target IP Address: '
-    read NMAP-IP 
+    read NMAPIP 
     echo ' ' 
     echo 'Running the NMAP Scan..'  
-    docker run --rm -it andrefernandes86/tools-nmap -A -T4 $NMAP-IP
+    docker run --rm -it andrefernandes86/tools-nmap -A -T4 $NMAPIP
     echo ' ' 
     read -p "Press any key to continue.."
     sleep 3
@@ -56,13 +56,13 @@ case $choice in
     echo '---------------------------'  
     echo '---------- HYDRA ----------'
     echo 'Target IP Address: '
-    read HYDRA-IP 
+    read HYDRAIP 
     echo ' ' 
     echo 'Target Port: '
-    read HYDRA-PORT 
+    read HYDRAPORT 
     echo ' ' 
     echo 'Running the HYDRA Brute Force..'  
-    docker run --rm andrefernandes86/tools-hydra -L /opt/usernames/top-usernames-shortlist.txt -P /opt/passwords/darkweb2017-top100.txt -f -V -s $HYDRA-PORT $HYDRA-IP http-get
+    docker run --rm andrefernandes86/tools-hydra -L /opt/usernames/top-usernames-shortlist.txt -P /opt/passwords/darkweb2017-top100.txt -f -V -s $HYDRAPORT $HYDRAIP http-get
     echo ' ' 
     read -p "Press any key to continue.."
     sleep 3
@@ -113,12 +113,12 @@ case $choice in
     echo ' ' 
     echo 'Running the Network Scan..'  
     echo 'Target IP Address: '
-    read NET-IP 
+    read NETIP 
     echo ' ' 
     echo 'Target PORT: '
-    read NET-PORT 
+    read NETPORT 
     echo ' ' 
-    docker run --rm -it --privileged --net=host -e TARGET_DOMAIN=$NET-IP:$NET-PORT andrefernandes86/tools-pentest
+    docker run --rm -it --privileged --net=host -e TARGET_DOMAIN=$NETIP:$NETPORT andrefernandes86/tools-pentest
     echo ' ' 
     read -p "Press any key to continue.."
     echo ' ' 
