@@ -203,8 +203,7 @@ case $choice in
     echo "";;
   # Option 7
   8)  echo "Quitting ..."
-    echo ' Cleaning the demo environment'
-    docker systen prune -y
+    echo ' '
       exit;;
   
   # Default Pattern
