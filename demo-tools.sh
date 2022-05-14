@@ -204,7 +204,7 @@ case $choice in
   # Option 7
   8)  echo "Quitting ..."
     echo ' Cleaning the demo environment'
-    docker systen prune
+    docker systen prune -y
       exit;;
   
   # Default Pattern
