@@ -141,7 +141,7 @@ case $choice in
     echo '---------- Malware Samples ----------'
     echo ' ' 
     echo 'Creating the webserver and adding the malware samples..'  
-    docker run --rm -d -p 80:80 andrefernandes86/tools-malware-samples --name malware
+    docker run --rm -d  --name malware -p 80:80 andrefernandes86/tools-malware-samples
     echo ' ' 
     echo ' URL: http://$ip-address '
     echo ' ' 
