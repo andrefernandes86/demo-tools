@@ -165,7 +165,7 @@ case $choice in
     echo '------------------------------------------------'  
     echo '---------- Vulnerable Web Application ----------'
     echo ' ' 
-    echo 'Creating the webserver and adding the malware samples..'  
+    echo 'Creating the vulnerable webserver..'  
     docker run --rm -p 81:80 andrefernandes86/demo-aws-c1ns-vulnerable-webserver --name wsrv
     echo ' ' 
     echo ' URL: http://$ip-address:81 '
