@@ -10,7 +10,7 @@ echo "---------------------------------------- Demo Tools ----------------------
 echo "1. Port Scan"
 echo "2. Brute Force Tool"
 echo "3. Web Application Tools"
-echo "4. Network Scan"
+echo "4. Domain Scan"
 echo "5. Generating Malware Samples (Real Samples)"
 echo "6. Generating a Vulnerable Web Application"
 echo "7. Install Docker "
@@ -109,13 +109,13 @@ case $choice in
   4)  echo "You have selected the option 4"
     clear
     echo '-----------------------------------'  
-    echo '---------- Network Scan ----------'
+    echo '---------- Domain Scan ----------'
     echo ' ' 
-    echo 'Running the Network Scan..'  
-    echo 'Target IP Address: '
+    echo 'Running the Domain Scan..'  
+    echo 'Target Domain: '
     read NETIP 
     echo ' ' 
-    echo 'Target PORT: '
+    echo 'Target Port: '
     read NETPORT 
     echo ' ' 
     docker run --rm -it --privileged --net=host -e TARGET_DOMAIN=$NETIP:$NETPORT andrefernandes86/tools-pentest
@@ -127,7 +127,7 @@ case $choice in
     echo "1. Port Scan"
     echo "2. Brute Force Tool"
     echo "3. Web Application Tools"
-    echo "4. Network Scan"
+    echo "4. Domain Scan"
     echo "5. Generating Malware Samples (Real Samples)"
     echo "6. Generating a Vulnerable Web Application"
     echo "7. Install Docker "
@@ -152,7 +152,7 @@ case $choice in
     echo "1. Port Scan"
     echo "2. Brute Force Tool"
     echo "3. Web Application Tools"
-    echo "4. Network Scan"
+    echo "4. Domain Scan"
     echo "5. Generating Malware Samples (Real Samples)"
     echo "6. Generating a Vulnerable Web Application"
     echo "7. Install Docker "
@@ -179,7 +179,7 @@ case $choice in
     echo "1. Port Scan"
     echo "2. Brute Force Tool"
     echo "3. Web Application Tools"
-    echo "4. Network Scan"
+    echo "4. Domain Scan"
     echo "5. Generating Malware Samples (Real Samples)"
     echo "6. Generating a Vulnerable Web Application"
     echo "7. Install Docker "
@@ -194,7 +194,7 @@ case $choice in
     echo "1. Port Scan"
     echo "2. Brute Force Tool"
     echo "3. Web Application Tools"
-    echo "4. Network Scan"
+    echo "4. Domain Scan"
     echo "5. Generating Malware Samples (Real Samples)"
     echo "6. Generating a Vulnerable Web Application"
     echo "7. Install Docker "
