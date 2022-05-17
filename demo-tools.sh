@@ -111,7 +111,7 @@ case $choice in
     echo '-----------------------------------'  
     echo '---------- Domain Scan ----------'
     echo ' ' 
-    echo 'Running the Domain Scan..'  
+    echo 'Running the Domain Scan #1'  
     echo 'Target Domain: '
     read NETIP 
     echo ' ' 
@@ -120,6 +120,9 @@ case $choice in
     echo ' ' 
     docker run --rm -it --privileged --net=host -e TARGET_DOMAIN=$NETIP:$NETPORT andrefernandes86/tools-pentest
     echo ' ' 
+    clear
+    echo 'Running the Domain Scan #2'  
+    docker run --rm -it andrefernandes86/tools-domain-scan bash
     read -p "Press any key to continue.."
     echo ' ' 
     sleep 3
