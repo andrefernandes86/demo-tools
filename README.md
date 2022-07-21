@@ -1,2 +1,2 @@
 # demo-tools
-demo tools used during some demos like c1as, c1ws, c1ns.
+docker run --rm --name demo-tools -p 80:80 -it demo-tools bash
