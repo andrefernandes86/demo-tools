@@ -1,79 +1,69 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-### =========================
+### =================================================
 ### CONFIGURATION
-### =========================
+### =================================================
 CLUSTER_NAME="eks-lab"
 REGION="us-east-1"
 ACCOUNT_ID="195216432632"
 ECR="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
 declare -A APPS
-APPS[v1fs-icap]="8080 ${ECR}/demo-v1fs-icap /icap-scan-web python3 app.py"
-APPS[trendai]="8000 ${ECR}/tools-ai-sec-demo"
+APPS[v1fs-demo]="8080 ${ECR}/demo-v1fs-icap /icap-scan-web python3 app.py"
+APPS[v1aisec-demo]="8000 ${ECR}/tools-ai-sec-demo"
 APPS[malware-samples]="80 ${ECR}/tools-malware-samples"
 
-### =========================
-### UTILITIES
-### =========================
+### =================================================
+### UTILS
+### =================================================
 pause() { read -rp "Press ENTER to continue..."; }
 
 configure_kubectl() {
-  echo "Configuring kubectl..."
+  echo "Configuring kubectl for EKS cluster..."
   aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER_NAME"
   kubectl get nodes -o wide
 }
 
-get_node_sg() {
-  local node="$1"
-  local instance_id
-  instance_id=$(aws ec2 describe-instances \
-    --filters "Name=private-dns-name,Values=$node" \
+get_instance_id_from_node() {
+  aws ec2 describe-instances \
+    --filters "Name=private-dns-name,Values=$1" \
     --query "Reservations[0].Instances[0].InstanceId" \
     --output text \
-    --region "$REGION")
+    --region "$REGION"
+}
 
+get_node_sg() {
   aws ec2 describe-instances \
-    --instance-ids "$instance_id" \
+    --instance-ids "$1" \
     --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" \
     --output text \
     --region "$REGION"
 }
 
 open_port() {
-  local sg="$1"
-  local port="$2"
   aws ec2 authorize-security-group-ingress \
-    --group-id "$sg" \
+    --group-id "$1" \
     --protocol tcp \
-    --port "$port" \
+    --port "$2" \
     --cidr 0.0.0.0/0 \
     --region "$REGION" 2>/dev/null || true
 }
 
 close_port() {
-  local sg="$1"
-  local port="$2"
   aws ec2 revoke-security-group-ingress \
-    --group-id "$sg" \
+    --group-id "$1" \
     --protocol tcp \
-    --port "$port" \
+    --port "$2" \
     --cidr 0.0.0.0/0 \
     --region "$REGION" 2>/dev/null || true
 }
 
-### =========================
+### =================================================
 ### POD MANAGEMENT
-### =========================
+### =================================================
 deploy_app() {
-  local name="$1"
-  shift
-  local port="$1"
-  local image="$2"
-  local workdir="${3:-}"
-  shift 3 || true
-  local cmd="$*"
+  local name="$1" port="$2" image="$3" workdir="${4:-}" cmd="${5:-}"
 
   kubectl delete pod "$name" --ignore-not-found
 
@@ -96,38 +86,36 @@ spec:
       hostPort: $port
 EOF
 
-  echo "Waiting for pod to schedule..."
+  echo "Waiting for pod to be ready..."
   kubectl wait --for=condition=Ready pod/$name --timeout=120s
 
-  local node
   node=$(kubectl get pod "$name" -o jsonpath='{.spec.nodeName}')
-  local sg
-  sg=$(get_node_sg "$node")
+  instance_id=$(get_instance_id_from_node "$node")
+  sg=$(get_node_sg "$instance_id")
+
   open_port "$sg" "$port"
 
-  echo "Pod deployed on node: $node"
+  echo "✔ $name running on node $node"
 }
 
 destroy_app() {
-  local name="$1"
-  local port="$2"
+  local name="$1" port="$2"
 
-  local node
-  node=$(kubectl get pod "$name" -o jsonpath='{.spec.nodeName}' 2>/dev/null || true)
-  if [[ -n "$node" ]]; then
-    local sg
-    sg=$(get_node_sg "$node")
+  if kubectl get pod "$name" &>/dev/null; then
+    node=$(kubectl get pod "$name" -o jsonpath='{.spec.nodeName}')
+    instance_id=$(get_instance_id_from_node "$node")
+    sg=$(get_node_sg "$instance_id")
     close_port "$sg" "$port"
   fi
 
   kubectl delete pod "$name" --ignore-not-found
-  echo "Pod $name removed"
+  echo "✔ $name removed"
 }
 
 discover_apps() {
   echo ""
   echo "Application discovery"
-  echo "----------------------------"
+  echo "-----------------------------"
 
   for app in "${!APPS[@]}"; do
     if ! kubectl get pod "$app" &>/dev/null; then
@@ -135,24 +123,81 @@ discover_apps() {
       continue
     fi
 
-    local node instance_id public_ip port
     node=$(kubectl get pod "$app" -o jsonpath='{.spec.nodeName}')
-    instance_id=$(aws ec2 describe-instances \
-      --filters "Name=private-dns-name,Values=$node" \
-      --query "Reservations[0].Instances[0].InstanceId" \
-      --output text \
-      --region "$REGION")
+    instance_id=$(get_instance_id_from_node "$node")
     public_ip=$(aws ec2 describe-instances \
       --instance-ids "$instance_id" \
       --query "Reservations[0].Instances[0].PublicIpAddress" \
       --output text \
       --region "$REGION")
-    port=$(echo "${APPS[$app]}" | awk '{print $1}')
 
+    port=$(echo "${APPS[$app]}" | awk '{print $1}')
     echo "$app → http://${public_ip}:${port} (node: $node)"
   done
 }
 
+### =================================================
+### SECURITY GROUP MANAGEMENT
+### =================================================
+manage_security_groups() {
+  echo ""
+  echo "Collecting worker node Security Groups..."
+
+  mapfile -t SGS < <(
+    kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' |
+    tr ' ' '\n' |
+    sed 's|.*/||' |
+    while read -r id; do
+      aws ec2 describe-instances \
+        --instance-ids "$id" \
+        --query 'Reservations[0].Instances[0].SecurityGroups[*].GroupId' \
+        --output text \
+        --region "$REGION"
+    done | tr '\t' '\n' | sort -u
+  )
+
+  for sg in "${SGS[@]}"; do
+    echo ""
+    echo "Security Group: $sg"
+    aws ec2 describe-security-groups \
+      --group-ids "$sg" \
+      --query 'SecurityGroups[0].IpPermissions[*].{Port:FromPort,IPs:IpRanges[*].CidrIp}' \
+      --output table \
+      --region "$REGION"
+  done
+
+  echo ""
+  read -rp "Do you want to add a new allowed IP? (yes/no): " answer
+  [[ "$answer" != "yes" ]] && return
+
+  read -rp "Enter IP or CIDR (example: 203.0.113.10/32): " cidr
+  read -rp "Enter TCP port: " port
+
+  for sg in "${SGS[@]}"; do
+    aws ec2 authorize-security-group-ingress \
+      --group-id "$sg" \
+      --protocol tcp \
+      --port "$port" \
+      --cidr "$cidr" \
+      --region "$REGION" 2>/dev/null || true
+  done
+
+  echo ""
+  echo "Final Security Group rules:"
+  for sg in "${SGS[@]}"; do
+    echo ""
+    echo "Security Group: $sg"
+    aws ec2 describe-security-groups \
+      --group-ids "$sg" \
+      --query 'SecurityGroups[0].IpPermissions[*].{Port:FromPort,IPs:IpRanges[*].CidrIp}' \
+      --output table \
+      --region "$REGION"
+  done
+}
+
+### =================================================
+### APP MENU
+### =================================================
 app_menu() {
   local app="$1"
   read -r port image workdir cmd <<< "${APPS[$app]}"
@@ -172,26 +217,28 @@ app_menu() {
   done
 }
 
-### =========================
+### =================================================
 ### MAIN MENU
-### =========================
+### =================================================
 while true; do
   clear
   echo "=== EKS CloudShell Lab Control ==="
   echo "1) Configure kubectl & verify cluster"
-  echo "2) v1fs-icap-server"
-  echo "3) trendai"
+  echo "2) v1fs-demo"
+  echo "3) v1aisec-demo"
   echo "4) malware-samples"
   echo "5) Application discovery (node + URL)"
+  echo "6) Manage Security Group allowed IPs"
   echo "0) Exit"
   read -rp "Select option: " opt
 
   case "$opt" in
     1) configure_kubectl; pause ;;
-    2) app_menu v1fs-icap ;;
-    3) app_menu trendai ;;
+    2) app_menu v1fs-demo ;;
+    3) app_menu v1aisec-demo ;;
     4) app_menu malware-samples ;;
     5) discover_apps; pause ;;
+    6) manage_security_groups; pause ;;
     0) exit 0 ;;
   esac
 done
